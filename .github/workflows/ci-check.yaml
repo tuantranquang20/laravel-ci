@@ -50,29 +50,29 @@ jobs:
 
           exit $FAILED
 
-    php-parallel-lint:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v4
+  php-parallel-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-        - name: Setup PHP
-          uses: shivammathur/setup-php@v2
-          with:
-            php-version: '7.4'
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
 
-        - name: Cache Composer dependencies
-          uses: actions/cache@v4
-          with:
-            path: vendor
-            key: composer-${{ hashFiles('composer.lock') }}
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
 
-        - name: Install dependencies
-          run: composer install --no-interaction --prefer-dist --no-dev
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-dev
 
-        - name: Run PHP Parallel Lint
-          run: |
-            ~/.composer/vendor/bin/parallel-lint \
-              --exclude vendor \
-              --exclude node_modules \
-              -j 10 \
-              .
+      - name: Run PHP Parallel Lint
+        run: |
+          ~/.composer/vendor/bin/parallel-lint \
+            --exclude vendor \
+            --exclude node_modules \
+            -j 10 \
+            .
