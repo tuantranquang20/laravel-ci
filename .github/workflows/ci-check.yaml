@@ -12,17 +12,22 @@ jobs:
         run: |
           FAILED=0
 
-          if grep -rn --include="*.php" "redis\.call('keys'\|redis\.call('KEYS'" . | grep -v vendor; then
-            echo "::error::BLOCKED: redis.call('keys'/'KEYS') found in PHP. Use SCAN instead."
+          if grep -rn --include="*.php" "redis\.call('keys'" . | grep -v vendor; then
+            echo "::error::BLOCKED: redis.call('keys') found in PHP. Use SCAN instead."
             FAILED=1
-          fi--no-dev
+          fi
 
-          if grep -rn --include="*.php" "->keys(" . | grep -v vendor; then
+          if grep -rn --include="*.php" "redis\.call('KEYS'" . | grep -v vendor; then
+            echo "::error::BLOCKED: redis.call('KEYS') found in PHP. Use SCAN instead."
+            FAILED=1
+          fi
+
+          if grep -rn --include="*.php" "\->keys(" . | grep -v vendor; then
             echo "::error::BLOCKED: ->keys() found in PHP. Use SCAN instead."
             FAILED=1
           fi
 
-          if grep -rn --include="*.php" "->eval(" . | grep -v vendor; then
+          if grep -rn --include="*.php" "\->eval(" . | grep -v vendor; then
             echo "::error::BLOCKED: ->eval() found in PHP."
             FAILED=1
           fi
@@ -58,7 +63,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '7.4'
+          php-version: '8.2'
 
       - name: Cache Composer dependencies
         uses: actions/cache@v4
@@ -71,8 +76,8 @@ jobs:
 
       - name: Run PHP Parallel Lint
         run: |
-          ~/.composer/vendor/bin/parallel-lint \
+          ./vendor/bin/parallel-lint \
             --exclude vendor \
             --exclude node_modules \
-            -j 10 \
+            -j 4 \
             .
