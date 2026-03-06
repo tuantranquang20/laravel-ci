@@ -72,7 +72,7 @@ jobs:
           key: composer-${{ hashFiles('composer.lock') }}
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-dev
+        run: composer install --no-interaction --prefer-dist
 
       - name: Run PHP Parallel Lint
         run: |
