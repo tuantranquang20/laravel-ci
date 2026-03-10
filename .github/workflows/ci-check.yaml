@@ -81,3 +81,59 @@ jobs:
             --exclude node_modules \
             -j 4 \
             .
+
+  php-cs-fixer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-scripts
+
+      - name: Run PHP-CS-Fixer
+        run: |
+          ./vendor/bin/php-cs-fixer fix \
+            --dry-run \
+            --diff \
+            --config=.php-cs-fixer.php \
+          && echo "✅ PHP-CS-Fixer PASSED. No coding style issues found." \
+          || (echo "::error::❌ PHP-CS-Fixer FAILED. Run locally to fix: ./vendor/bin/php-cs-fixer fix" && exit 1)
+
+  phpstan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-scripts
+
+      - name: Run PHPStan
+        run: |
+          ./vendor/bin/phpstan analyse \
+            --configuration=phpstan.neon \
+            --error-format=github \
+            --memory-limit=1G \
+          && echo "✅ PHPStan PASSED. No static analysis issues found." \
+          || (echo "::error::❌ PHPStan FAILED. Fix static analysis errors above." && exit 1)
