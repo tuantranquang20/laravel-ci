@@ -1,0 +1,139 @@
+name: Redis Safety Check
+
+on: [pull_request]
+
+jobs:
+  redis-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect dangerous Redis patterns (PHP - Laravel)
+        run: |
+          FAILED=0
+
+          if grep -rn --include="*.php" "redis\.call('keys'" . | grep -v vendor; then
+            echo "::error::BLOCKED: redis.call('keys') found in PHP. Use SCAN instead."
+            FAILED=1
+          fi
+
+          if grep -rn --include="*.php" "redis\.call('KEYS'" . | grep -v vendor; then
+            echo "::error::BLOCKED: redis.call('KEYS') found in PHP. Use SCAN instead."
+            FAILED=1
+          fi
+
+          if grep -rn --include="*.php" "\->keys(" . | grep -v vendor; then
+            echo "::error::BLOCKED: ->keys() found in PHP. Use SCAN instead."
+            FAILED=1
+          fi
+
+          if grep -rn --include="*.php" "\->eval(" . | grep -v vendor; then
+            echo "::error::BLOCKED: ->eval() found in PHP."
+            FAILED=1
+          fi
+
+          exit $FAILED
+
+      - name: Detect dangerous Redis patterns (Go)
+        run: |
+          FAILED=0
+
+          if grep -rn --include="*.go" "redis\.call('keys'\|redis\.call('KEYS'" . | grep -v "_test.go"; then
+            echo "::error::BLOCKED: redis.call('KEYS') found in Go Lua script. Use SCAN instead."
+            FAILED=1
+          fi
+
+          if grep -rn --include="*.go" "\.Keys(ctx" . | grep -v "_test.go"; then
+            echo "::error::BLOCKED: .Keys(ctx) found in Go. Use .Scan(ctx) instead."
+            FAILED=1
+          fi
+
+          if grep -rn --include="*.go" "\.Eval(ctx" . | grep -v "_test.go"; then
+            echo "::error::BLOCKED: .Eval(ctx) found in Go."
+            FAILED=1
+          fi
+
+          exit $FAILED
+
+  php-parallel-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run PHP Parallel Lint
+        run: |
+          ./vendor/bin/parallel-lint \
+            --exclude vendor \
+            --exclude node_modules \
+            -j 4 \
+            .
+
+  php-cs-fixer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-scripts
+
+      - name: Run PHP-CS-Fixer
+        run: |
+          ./vendor/bin/php-cs-fixer fix \
+            --dry-run \
+            --diff \
+            --config=.php-cs-fixer.php \
+          && echo "✅ PHP-CS-Fixer PASSED. No coding style issues found." \
+          || (echo "::error::❌ PHP-CS-Fixer FAILED. Run locally to fix: ./vendor/bin/php-cs-fixer fix" && exit 1)
+
+  phpstan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-scripts
+
+      - name: Run PHPStan
+        run: |
+          ./vendor/bin/phpstan analyse \
+            --configuration=phpstan.neon \
+            --error-format=github \
+            --memory-limit=1G \
+          && echo "✅ PHPStan PASSED. No static analysis issues found." \
+          || (echo "::error::❌ PHPStan FAILED. Fix static analysis errors above." && exit 1)
